@@ -7,7 +7,33 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <canvas id="game" width="800" height="600"></canvas>
+  <div id="game-wrapper">
+    <canvas id="game" width="800" height="600"></canvas>
+
+    <div id="touch-controls" aria-label="Touch controls">
+      <div class="touch-cluster touch-left">
+        <button type="button" class="touch-btn" data-key="a" aria-label="Turn left">
+          <span class="touch-icon">&#9664;</span>
+          <span class="touch-label">A</span>
+        </button>
+        <button type="button" class="touch-btn" data-key="d" aria-label="Turn right">
+          <span class="touch-icon">&#9654;</span>
+          <span class="touch-label">D</span>
+        </button>
+      </div>
+      <div class="touch-cluster touch-right">
+        <button type="button" class="touch-btn" data-key="w" aria-label="Accelerate">
+          <span class="touch-icon">&#9650;</span>
+          <span class="touch-label">W</span>
+        </button>
+        <button type="button" class="touch-btn" data-key="s" aria-label="Brake / reverse">
+          <span class="touch-icon">&#9660;</span>
+          <span class="touch-label">S</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script type="module" src="js/main.js"></script>
 </body>
 </html>
