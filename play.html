@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>2D Car Racing Game (single-file build)</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%;
+      background: #111; color: #eee;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+    }
+    body {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; padding: 8px;
+    }
+    canvas {
+      background: #2d4a2d;
+      border: 2px solid #555;
+      display: block;
+      max-width: 100%; height: auto;
+      image-rendering: pixelated;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game" width="800" height="600"></canvas>
+  <script>
+  // ---- Single-file build of Steps 0-3. No modules so file:// works too. ----
+
+  // ---------- Input ----------
+  class Input {
+    constructor() {
+      this.keys = new Set();
+      window.addEventListener("keydown", (e) => {
+        this.keys.add(e.key);
+        if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," "].includes(e.key)) {
+          e.preventDefault();
+        }
+      });
+      window.addEventListener("keyup", (e) => this.keys.delete(e.key));
+      window.addEventListener("blur", () => this.keys.clear());
+    }
+    isDown(k) { return this.keys.has(k); }
+  }
+
+  // ---------- Car ----------
+  class Car {
+    constructor(x, y) {
+      this.x = x; this.y = y;
+      this.width = 40; this.height = 20;
+      this.color = "#e74c3c";
+      this.angle = 0;
+      this.speed = 0;
+      this.maxSpeed = 500;
+      this.maxReverseSpeed = 200;
+      this.acceleration = 320;
+      this.reverseAccel = 200;
+      this.friction = 2.5;
+      this.drag = 0.4;
+      this.turnRate = 3.2;
+      this.minTurnFactor = 0.15;
+    }
+
+    update(dt, input) {
+      const forward  = input.isDown("w") || input.isDown("ArrowUp");
+      const reverse  = input.isDown("s") || input.isDown("ArrowDown");
+      const turnLeft = input.isDown("a") || input.isDown("ArrowLeft");
+      const turnRight= input.isDown("d") || input.isDown("ArrowRight");
+
+      if (forward) {
+        this.speed += this.acceleration * dt;
+      } else if (reverse) {
+        this.speed -= this.reverseAccel * dt;
+      } else {
+        this.speed *= Math.exp(-this.friction * dt);
+        if (Math.abs(this.speed) < 1) this.speed = 0;
+      }
+      this.speed *= Math.exp(-this.drag * dt);
+
+      if (this.speed >  this.maxSpeed)        this.speed =  this.maxSpeed;
+      if (this.speed < -this.maxReverseSpeed) this.speed = -this.maxReverseSpeed;
+
+      const speedRatio = Math.abs(this.speed) / this.maxSpeed;
+      const turnFactor = this.minTurnFactor + (1 - this.minTurnFactor) * speedRatio;
+      const turn = this.turnRate * turnFactor * dt;
+      if (turnLeft)  this.angle -= turn;
+      if (turnRight) this.angle += turn;
+
+      this.x += Math.cos(this.angle) * this.speed * dt;
+      this.y += Math.sin(this.angle) * this.speed * dt;
+    }
+
+    render(ctx) {
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.rotate(this.angle);
+
+      ctx.fillStyle = this.color;
+      ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
+      ctx.strokeStyle = "#7a1f17";
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(-this.width/2, -this.height/2, this.width, this.height);
+
+      ctx.fillStyle = "#3498db";
+      ctx.fillRect(this.width/2 - 14, -this.height/2 + 3, 8, this.height - 6);
+
+      ctx.fillStyle = "#f1c40f";
+      ctx.fillRect(this.width/2 - 6, -this.height/2, 6, this.height);
+
+      ctx.fillStyle = "#c0392b";
+      ctx.fillRect(-this.width/2, -this.height/2, 3, 4);
+      ctx.fillRect(-this.width/2,  this.height/2 - 4, 3, 4);
+
+      ctx.restore();
+    }
+
+    getSpeedKmh() { return Math.abs(this.speed) * 0.18; }
+  }
+
+  // ---------- HUD ----------
+  class HUD {
+    constructor() {
+      this.font = "bold 22px system-ui, sans-serif";
+      this.hintFont = "14px system-ui, sans-serif";
+    }
+    render(ctx, car) {
+      ctx.save();
+
+      // speed panel
+      const px = 16, py = 16, pw = 200, ph = 56;
+      ctx.fillStyle = "rgba(0,0,0,0.55)";
+      ctx.fillRect(px, py, pw, ph);
+      ctx.strokeStyle = "rgba(255,255,255,0.25)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
+
+      ctx.fillStyle = "#fff";
+      ctx.font = "12px system-ui, sans-serif";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      ctx.fillText("SPEED", px + 12, py + 8);
+
+      ctx.fillStyle = "#f1c40f";
+      ctx.font = this.font;
+      ctx.fillText(`${Math.round(car.getSpeedKmh())} km/h`, px + 12, py + 22);
+
+      // controls hint
+      ctx.font = this.hintFont;
+      ctx.fillStyle = "rgba(255,255,255,0.75)";
+      const hy = ctx.canvas.height - 50;
+      ctx.fillText("Controls:  W / \u2191  accelerate", 16, hy);
+      ctx.fillText("              S / \u2193  brake / reverse", 16, hy + 18);
+      ctx.fillText("              A / \u2190  turn left      D / \u2192  turn right", 16, hy + 36);
+
+      ctx.restore();
+    }
+  }
+
+  // ---------- Game ----------
+  class Game {
+    constructor(canvas) {
+      this.canvas = canvas;
+      this.ctx = canvas.getContext("2d");
+      this.input = new Input();
+      this.car = new Car(canvas.width / 2, canvas.height / 2);
+      this.hud = new HUD();
+      this.lastTime = 0;
+    }
+    start() {
+      this.lastTime = performance.now();
+      requestAnimationFrame(this.loop);
+    }
+    loop = (timestamp) => {
+      const dt = Math.min((timestamp - this.lastTime) / 1000, 0.1);
+      this.lastTime = timestamp;
+      this.update(dt);
+      this.render();
+      requestAnimationFrame(this.loop);
+    };
+    update(dt) { this.car.update(dt, this.input); }
+    render() {
+      const { ctx, canvas } = this;
+      ctx.fillStyle = "#2d4a2d";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      this.car.render(ctx);
+      this.hud.render(ctx, this.car);
+    }
+  }
+
+  // ---------- Boot ----------
+  const canvas = document.getElementById("game");
+  const game = new Game(canvas);
+  game.start();
+  </script>
+</body>
+</html>
